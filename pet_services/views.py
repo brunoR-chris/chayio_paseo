@@ -1,12 +1,27 @@
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import login
 from django.shortcuts import redirect, render
 
+from .forms import RegistrationForm
 from .models import Booking, Pet, ServiceOffer, UserProfile
 
 
 def home(request):
     offers = ServiceOffer.objects.filter(available=True).select_related('walker')[:12]
     return render(request, 'pet_services/home.html', {'offers': offers})
+
+
+def register(request):
+    if request.method == 'POST':
+        form = RegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect('dashboard')
+    else:
+        form = RegistrationForm()
+
+    return render(request, 'registration/register.html', {'form': form})
 
 
 @login_required
@@ -36,6 +51,7 @@ def book_service(request, offer_id):
 def dashboard(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
     pets = Pet.objects.filter(owner=request.user)
+    available_pets = Pet.objects.filter(available=True).select_related('owner') if profile.role == 'walker' else []
     my_offers = ServiceOffer.objects.filter(walker=request.user) if profile.role == 'walker' else []
     bookings = Booking.objects.filter(owner=request.user) | Booking.objects.filter(walker=request.user)
     bookings = bookings.distinct().order_by('-created_at')
@@ -45,6 +61,7 @@ def dashboard(request):
         {
             'profile': profile,
             'pets': pets,
+            'available_pets': available_pets,
             'my_offers': my_offers,
             'bookings': bookings,
         },
@@ -59,6 +76,7 @@ def create_pet(request):
         breed = request.POST.get('breed', '').strip()
         age = request.POST.get('age', '').strip()
         notes = request.POST.get('notes', '').strip()
+        available = request.POST.get('available') == 'on'
 
         if name and species:
             Pet.objects.create(
@@ -68,6 +86,7 @@ def create_pet(request):
                 breed=breed,
                 age=int(age) if age else None,
                 notes=notes,
+                available=available,
             )
             return render(request, 'pet_services/pet_created.html')
 

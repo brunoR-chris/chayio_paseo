@@ -27,6 +27,7 @@ class Pet(models.Model):
     breed = models.CharField(max_length=100, blank=True)
     age = models.PositiveIntegerField(blank=True, null=True)
     notes = models.TextField(blank=True)
+    available = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):

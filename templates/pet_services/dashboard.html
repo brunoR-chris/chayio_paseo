@@ -22,7 +22,10 @@
             <a href="/mascota/nueva/">Registrar mascota</a>
             <a href="/paseo/nuevo/">Publicar servicio</a>
             <a href="/mis-reservas/">Ver reservas</a>
-            <a href="/accounts/logout/">Cerrar sesión</a>
+            <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" style="border: 0; background: #2563eb; color: white; font: inherit; padding: 10px 14px; border-radius: 8px; cursor: pointer; margin-top: 8px;">Cerrar sesión</button>
+            </form>
         </div>
 
         <div class="grid" style="margin-top: 24px;">
@@ -45,6 +48,21 @@
                     <p>No tienes mascotas registradas.</p>
                 {% endif %}
             </div>
+
+            {% if profile.role == 'walker' %}
+                <div class="card">
+                    <h2>Mascotas disponibles</h2>
+                    {% if available_pets %}
+                        <ul>
+                            {% for pet in available_pets %}
+                                <li>{{ pet.name }} · {{ pet.species }} · {{ pet.breed|default:'Sin raza' }} · Dueño: {{ pet.owner.get_full_name|default:pet.owner.username }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No hay mascotas disponibles actualmente.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
 
             <div class="card">
                 <h2>Mis servicios</h2>
