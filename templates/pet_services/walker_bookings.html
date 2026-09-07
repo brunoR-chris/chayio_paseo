@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reservas del paseador</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8fafc; margin: 0; }
+        .container { max-width: 900px; margin: 48px auto; padding: 24px; }
+        .card { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 5px 14px rgba(15,23,42,.08); margin-bottom: 18px; }
+        a { text-decoration: none; color: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Reservas de paseos</h1>
+        <p><a href="/dashboard/">Volver al dashboard</a></p>
+        {% if bookings %}
+            {% for booking in bookings %}
+                <div class="card">
+                    <h3>{{ booking.service.title }}</h3>
+                    <p><strong>Dueño:</strong> {{ booking.owner.get_full_name|default:booking.owner.username }}</p>
+                    <p><strong>Fecha:</strong> {{ booking.date }} · {{ booking.time }}</p>
+                    <p><strong>Estado:</strong> {{ booking.get_status_display }}</p>
+                    <p><strong>Notas:</strong> {{ booking.notes|default:'Sin notas' }}</p>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="card">
+                <p>No tienes reservas todavía.</p>
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

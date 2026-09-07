@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Chayio</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f8fafc; color: #0f172a; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .card { background: white; border-radius: 14px; padding: 22px; box-shadow: 0 5px 14px rgba(15,23,42,.08); }
+        h1, h2 { margin-top: 0; }
+        .actions a { display: inline-block; margin-right: 10px; background: #2563eb; color: white; text-decoration: none; padding: 10px 14px; border-radius: 8px; margin-top: 8px; }
+        ul { padding-left: 18px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mi dashboard</h1>
+        <div class="actions">
+            <a href="/">Inicio</a>
+            <a href="/mascota/nueva/">Registrar mascota</a>
+            <a href="/paseo/nuevo/">Publicar servicio</a>
+            <a href="/mis-reservas/">Ver reservas</a>
+            <a href="/accounts/logout/">Cerrar sesión</a>
+        </div>
+
+        <div class="grid" style="margin-top: 24px;">
+            <div class="card">
+                <h2>Perfil</h2>
+                <p><strong>Usuario:</strong> {{ user.get_full_name|default:user.username }}</p>
+                <p><strong>Rol:</strong> {{ profile.get_role_display }}</p>
+                <p><strong>Teléfono:</strong> {{ profile.phone|default:'No registrado' }}</p>
+            </div>
+
+            <div class="card">
+                <h2>Mascotas</h2>
+                {% if pets %}
+                    <ul>
+                        {% for pet in pets %}
+                            <li>{{ pet.name }} · {{ pet.species }} · {{ pet.breed|default:'Sin raza' }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No tienes mascotas registradas.</p>
+                {% endif %}
+            </div>
+
+            <div class="card">
+                <h2>Mis servicios</h2>
+                {% if my_offers %}
+                    <ul>
+                        {% for offer in my_offers %}
+                            <li>{{ offer.title }} · ${{ offer.price }}</li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p>No publicaste servicios todavía.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 28px;">
+            <h2>Reservas</h2>
+            {% if bookings %}
+                <ul>
+                    {% for booking in bookings %}
+                        <li>
+                            {{ booking.service.title }} · {{ booking.date }} {{ booking.time }} · Estado: {{ booking.get_status_display }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>Todavía no hay reservas.</p>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
