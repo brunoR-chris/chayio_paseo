@@ -14,6 +14,7 @@ class UserProfile(models.Model):
     phone = models.CharField(max_length=20, blank=True)
     bio = models.TextField(blank=True)
     address = models.CharField(max_length=255, blank=True)
+    avatar = models.FileField(upload_to='avatars/', blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
@@ -63,7 +64,24 @@ class Booking(models.Model):
     time = models.TimeField()
     notes = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    owner_confirmed = models.BooleanField(default=False)
+    walker_confirmed = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
         return f"Reserva de {self.owner} para {self.service}"
+
+
+class WalkerRating(models.Model):
+    booking = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name='rating')
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='walker_ratings')
+    walker = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_ratings')
+    score = models.PositiveSmallIntegerField()
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.score}/5 para {self.walker}"

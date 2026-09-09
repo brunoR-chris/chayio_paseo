@@ -14,6 +14,10 @@ a { color: var(--green); }
 .site-nav { background: rgba(246, 248, 243, .92); border-bottom: 1px solid var(--line); }
 .brand { color: var(--ink); font-size: 1.35rem; font-weight: 700; }
 .brand:hover { color: var(--green); }
+.avatar { border-radius: 50%; object-fit: cover; background: #e6efe4; }
+.avatar-sm { width: 2rem; height: 2rem; }
+.avatar-lg { width: 5rem; height: 5rem; }
+.avatar-placeholder { display: inline-grid; place-items: center; color: var(--green); font-weight: 700; }
 .brand-mark { display: inline-grid; place-items: center; width: 1.7rem; height: 1.7rem; margin-right: .35rem; border-radius: 50%; background: var(--lime); color: var(--green-dark); font-size: 1.4rem; line-height: 1; }
 .nav-link { color: var(--muted); font-weight: 600; }
 .nav-link:hover { color: var(--green); }

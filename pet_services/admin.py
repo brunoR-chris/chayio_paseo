@@ -1,11 +1,11 @@
 from django.contrib import admin
 
-from .models import Booking, Pet, ServiceOffer, UserProfile
+from .models import Booking, Pet, ServiceOffer, UserProfile, WalkerRating
 
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'role', 'phone', 'address')
+    list_display = ('user', 'role', 'phone', 'address', 'avatar')
     list_filter = ('role',)
     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'phone')
 
@@ -25,6 +25,12 @@ class ServiceOfferAdmin(admin.ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('owner', 'walker', 'service', 'date', 'status')
+    list_display = ('owner', 'walker', 'service', 'date', 'status', 'owner_confirmed', 'walker_confirmed')
     list_filter = ('status', 'date')
     search_fields = ('owner__username', 'walker__username', 'service__title')
+
+
+@admin.register(WalkerRating)
+class WalkerRatingAdmin(admin.ModelAdmin):
+    list_display = ('walker', 'owner', 'score', 'booking', 'created_at')
+    list_filter = ('score',)

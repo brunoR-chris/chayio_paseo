@@ -1,0 +1,3 @@
+{% extends 'base.html' %}
+{% block title %}Reserva enviada | Chayio{% endblock %}
+{% block content %}<div class="container"><section class="form-card text-center"><div class="eyebrow mb-2">Solicitud enviada</div><h1>Reserva pendiente de confirmación</h1><p class="text-secondary">Tu solicitud para <strong>{{ offer.title }}</strong> fue enviada al paseador. Te avisaremos cuando la acepte.</p><a class="btn btn-primary mt-2" href="{% url 'dashboard' %}">Ver mis reservas</a></section></div>{% endblock %}

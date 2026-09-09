@@ -37,7 +37,7 @@
                     <h3 class="h5">{{ offer.title }}</h3>
                     <div class="small text-secondary mb-3">{{ offer.city }} · {{ offer.duration_minutes }} min</div>
                     <p class="text-secondary">{{ offer.description|truncatechars:120 }}</p>
-                    <div class="mt-auto pt-3"><div class="price">$ {{ offer.price }}</div><div class="small text-secondary mt-2">Paseador: {{ offer.walker.get_full_name|default:offer.walker.username }}</div><a class="btn btn-primary mt-3" href="{% url 'book_service' offer.id %}">Reservar</a></div>
+                    <div class="mt-auto pt-3"><div class="price">$ {{ offer.price }}</div><div class="small text-secondary mt-2">Paseador: {{ offer.walker.get_full_name|default:offer.walker.username }}</div><div class="small text-warning mt-1">{% if offer.walker_rating %}★ {{ offer.walker_rating|floatformat:1 }}/5{% else %}Sin calificaciones{% endif %}</div><a class="btn btn-primary mt-3" href="{% url 'book_service' offer.id %}">Reservar</a></div>
                 </article>
             </div>
         {% empty %}

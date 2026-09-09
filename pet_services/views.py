@@ -1,13 +1,16 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
-from django.shortcuts import redirect, render
+from django.db.models import Avg
+from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import RegistrationForm
-from .models import Booking, Pet, ServiceOffer, UserProfile
+from .models import Booking, Pet, ServiceOffer, UserProfile, WalkerRating
 
 
 def home(request):
-    offers = ServiceOffer.objects.filter(available=True).select_related('walker')[:12]
+    offers = ServiceOffer.objects.filter(available=True).select_related('walker').annotate(
+        walker_rating=Avg('walker__received_ratings__score'),
+    )[:12]
     return render(request, 'pet_services/home.html', {'offers': offers})
 
 
@@ -42,7 +45,7 @@ def book_service(request, offer_id):
                 time=time,
                 notes=notes,
             )
-            return redirect('dashboard')
+            return render(request, 'pet_services/booking_created.html', {'offer': offer})
 
     return render(request, 'pet_services/book_service.html', {'offer': offer})
 
@@ -50,6 +53,12 @@ def book_service(request, offer_id):
 @login_required
 def dashboard(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    if request.method == 'POST':
+        avatar = request.FILES.get('avatar')
+        if avatar:
+            profile.avatar = avatar
+            profile.save(update_fields=['avatar'])
+        return redirect('dashboard')
     pets = Pet.objects.filter(owner=request.user)
     available_pets = Pet.objects.filter(available=True).select_related('owner') if profile.role == 'walker' else []
     my_offers = ServiceOffer.objects.filter(walker=request.user) if profile.role == 'walker' else []
@@ -121,3 +130,50 @@ def bookings_for_walker(request):
     offers = ServiceOffer.objects.filter(walker=request.user)
     bookings = Booking.objects.filter(walker=request.user).select_related('owner', 'service').order_by('-created_at')
     return render(request, 'pet_services/walker_bookings.html', {'bookings': bookings, 'offers': offers})
+
+
+@login_required
+def confirm_booking(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id, owner=request.user)
+    if request.method == 'POST' and booking.status == 'accepted':
+        booking.owner_confirmed = True
+        booking.save(update_fields=['owner_confirmed'])
+    return redirect('dashboard')
+
+
+@login_required
+def respond_booking(request, booking_id, response):
+    booking = get_object_or_404(Booking, id=booking_id, walker=request.user)
+    if request.method == 'POST' and booking.status == 'pending':
+        if response == 'accept':
+            booking.status = 'accepted'
+            booking.walker_confirmed = True
+        elif response == 'reject':
+            booking.status = 'rejected'
+        booking.save(update_fields=['status', 'walker_confirmed'])
+    return redirect('walker_bookings')
+
+
+@login_required
+def complete_booking(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id, walker=request.user)
+    if request.method == 'POST' and booking.status == 'accepted' and booking.owner_confirmed and booking.walker_confirmed:
+        booking.status = 'completed'
+        booking.save(update_fields=['status'])
+    return redirect('walker_bookings')
+
+
+@login_required
+def rate_walker(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id, owner=request.user, status='completed')
+    if request.method == 'POST' and not hasattr(booking, 'rating'):
+        score = request.POST.get('score', '')
+        if score in {'1', '2', '3', '4', '5'}:
+            WalkerRating.objects.create(
+                booking=booking,
+                owner=request.user,
+                walker=booking.walker,
+                score=int(score),
+                comment=request.POST.get('comment', '').strip(),
+            )
+    return redirect('dashboard')

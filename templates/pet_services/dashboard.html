@@ -5,15 +5,70 @@
 {% block content %}
 <div class="container py-5">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
-        <div><div class="eyebrow mb-2">Tu espacio Chayio</div><h1 class="mb-1">Hola, {{ user.first_name|default:user.username }}</h1><p class="text-secondary mb-0">Todo lo importante de tus mascotas y paseos, en un solo lugar.</p></div>
-        <div class="d-flex gap-2 flex-wrap"><a class="btn btn-primary" href="{% url 'create_pet' %}">Registrar mascota</a>{% if profile.role == 'walker' %}<a class="btn btn-outline-success" href="{% url 'create_offer' %}">Publicar servicio</a>{% endif %}</div>
+        <div>
+            <div class="eyebrow mb-2">Tu espacio Chayio</div>
+            <h1 class="mb-1">Hola, {{ user.first_name|default:user.username }}</h1>
+            <p class="text-secondary mb-0">Todo lo importante de tus mascotas y paseos, en un solo lugar.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-primary" href="{% url 'create_pet' %}">Registrar mascota</a>
+            {% if profile.role == 'walker' %}<a class="btn btn-outline-success" href="{% url 'create_offer' %}">Publicar servicio</a>{% endif %}
+        </div>
     </div>
+
     <div class="row g-4">
-        <div class="col-md-6 col-xl-4"><div class="dashboard-card"><h2 class="h5">Perfil</h2><p class="mb-2"><strong>Usuario:</strong> {{ user.get_full_name|default:user.username }}</p><p class="mb-2"><strong>Rol:</strong> {{ profile.get_role_display }}</p><p class="mb-0"><strong>Teléfono:</strong> {{ profile.phone|default:'No registrado' }}</p></div></div>
+        <div class="col-md-6 col-xl-4">
+            <div class="dashboard-card">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    {% if profile.avatar %}<img class="avatar avatar-lg" src="{{ profile.avatar.url }}" alt="Avatar de {{ user.username }}">{% else %}<div class="avatar avatar-lg avatar-placeholder">{{ user.username|first|upper }}</div>{% endif %}
+                    <div><h2 class="h5 mb-1">Perfil</h2><span class="text-secondary">{{ profile.get_role_display }}</span></div>
+                </div>
+                <p class="mb-2"><strong>Usuario:</strong> {{ user.get_full_name|default:user.username }}</p>
+                <p class="mb-2"><strong>Teléfono:</strong> {{ profile.phone|default:'No registrado' }}</p>
+                <form method="post" enctype="multipart/form-data" class="mt-3">
+                    {% csrf_token %}
+                    <label class="form-label small" for="avatar">Cambiar avatar</label>
+                    <input class="form-control form-control-sm" type="file" name="avatar" id="avatar" accept="image/*">
+                    <button class="btn btn-sm btn-outline-success mt-2" type="submit">Guardar avatar</button>
+                </form>
+            </div>
+        </div>
         <div class="col-md-6 col-xl-4"><div class="dashboard-card"><h2 class="h5">Mis mascotas</h2>{% if pets %}<ul>{% for pet in pets %}<li>{{ pet.name }} · {{ pet.species }} · {{ pet.breed|default:'Sin raza' }}</li>{% endfor %}</ul>{% else %}<p class="text-secondary mb-0">No tienes mascotas registradas.</p>{% endif %}</div></div>
         {% if profile.role == 'walker' %}<div class="col-md-6 col-xl-4"><div class="dashboard-card"><h2 class="h5">Mascotas disponibles</h2>{% if available_pets %}<ul>{% for pet in available_pets %}<li>{{ pet.name }} · {{ pet.species }} · Dueño: {{ pet.owner.get_full_name|default:pet.owner.username }}</li>{% endfor %}</ul>{% else %}<p class="text-secondary mb-0">No hay mascotas disponibles actualmente.</p>{% endif %}</div></div>{% endif %}
         <div class="col-md-6 col-xl-4"><div class="dashboard-card"><h2 class="h5">Mis servicios</h2>{% if my_offers %}<ul>{% for offer in my_offers %}<li>{{ offer.title }} · ${{ offer.price }}</li>{% endfor %}</ul>{% else %}<p class="text-secondary mb-0">No publicaste servicios todavía.</p>{% endif %}</div></div>
     </div>
-    <div class="dashboard-card mt-4"><div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h5 mb-0">Reservas</h2>{% if profile.role == 'walker' %}<a href="{% url 'walker_bookings' %}">Ver como paseador</a>{% endif %}</div>{% if bookings %}<div class="list-group list-group-flush">{% for booking in bookings %}<div class="list-group-item px-0 d-flex justify-content-between gap-3 flex-wrap"><span><strong>{{ booking.service.title }}</strong><br><small class="text-secondary">{{ booking.date }} · {{ booking.time }}</small></span><span class="badge text-bg-light align-self-start">{{ booking.get_status_display }}</span></div>{% endfor %}</div>{% else %}<p class="text-secondary mb-0">Todavía no hay reservas.</p>{% endif %}</div>
+
+    <div class="dashboard-card mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h5 mb-0">Reservas</h2>{% if profile.role == 'walker' %}<a href="{% url 'walker_bookings' %}">Gestionar reservas</a>{% endif %}</div>
+        {% if bookings %}
+            <div class="list-group list-group-flush">
+                {% for booking in bookings %}
+                    <div class="list-group-item px-0 d-flex justify-content-between gap-3 flex-wrap">
+                        <span><strong>{{ booking.service.title }}</strong><br><small class="text-secondary">{{ booking.date }} · {{ booking.time }}</small>{% if booking.status == 'accepted' %}<br><small class="text-secondary">{% if booking.owner_confirmed %}Tu confirmación está registrada{% else %}Confirma esta reserva para cerrar el acuerdo{% endif %}</small>{% endif %}</span>
+                        <span class="d-flex gap-2 align-items-start">
+                            <span class="badge text-bg-light">{{ booking.get_status_display }}</span>
+                            {% if profile.role == 'owner' and booking.status == 'accepted' and not booking.owner_confirmed %}
+                                <form method="post" action="{% url 'confirm_booking' booking.id %}">
+                                    {% csrf_token %}
+                                    <button class="btn btn-sm btn-primary" type="submit">Confirmar</button>
+                                </form>
+                            {% elif profile.role == 'owner' and booking.status == 'completed' and not booking.rating %}<a class="btn btn-sm btn-outline-success" href="#rating-{{ booking.id }}">Calificar</a>{% endif %}
+                        </span>
+                    </div>
+                    {% if profile.role == 'owner' and booking.status == 'completed' and not booking.rating %}
+                        <form id="rating-{{ booking.id }}" method="post" action="{% url 'rate_walker' booking.id %}" class="mt-3 p-3 bg-light rounded">
+                            {% csrf_token %}
+                            <label class="form-label" for="score-{{ booking.id }}">Califica a tu paseador</label>
+                            <div class="d-flex gap-2 mb-2">
+                                {% for score in '12345' %}<label class="btn btn-outline-warning"><input class="visually-hidden" type="radio" name="score" value="{{ score }}" id="score-{{ booking.id }}-{{ score }}" required>{{ score }}★</label>{% endfor %}
+                            </div>
+                            <textarea class="form-control form-control-sm mb-2" name="comment" rows="2" placeholder="Comentario opcional"></textarea>
+                            <button class="btn btn-sm btn-success" type="submit">Enviar calificación</button>
+                        </form>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        {% else %}<p class="text-secondary mb-0">Todavía no hay reservas.</p>{% endif %}
+    </div>
 </div>
 {% endblock %}
