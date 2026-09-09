@@ -1,31 +1,3 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Publicar servicio</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #f8fafc; margin: 0; }
-        .container { max-width: 700px; margin: 48px auto; background: white; padding: 28px; border-radius: 16px; box-shadow: 0 6px 18px rgba(15,23,42,.08); }
-        form { display: grid; gap: 14px; }
-        input, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; box-sizing: border-box; }
-        button { background: #16a34a; color: white; border: none; padding: 12px 18px; border-radius: 8px; cursor: pointer; }
-        a { text-decoration: none; color: #2563eb; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>Publicar servicio de paseo</h1>
-        <form method="post">
-            {% csrf_token %}
-            <input type="text" name="title" placeholder="Título del servicio" required>
-            <textarea name="description" rows="4" placeholder="Describe tu servicio" required></textarea>
-            <input type="number" step="0.01" name="price" placeholder="Precio" required>
-            <input type="number" name="duration_minutes" placeholder="Duración en minutos" value="60">
-            <input type="text" name="city" placeholder="Ciudad" required>
-            <button type="submit">Crear servicio</button>
-        </form>
-        <p><a href="/dashboard/">Volver al dashboard</a></p>
-    </div>
-</body>
-</html>
+{% extends 'base.html' %}
+{% block title %}Publicar servicio | Chayio{% endblock %}
+{% block content %}<div class="container"><section class="form-card"><div class="eyebrow mb-2">Comparte tu experiencia</div><h1>Publicar servicio de paseo</h1><p class="text-secondary">Presenta tu propuesta para que las familias te encuentren.</p><form method="post" class="row g-3 mt-2">{% csrf_token %}<div class="col-12"><label class="form-label">Título del servicio</label><input class="form-control" type="text" name="title" required></div><div class="col-12"><label class="form-label">Descripción</label><textarea class="form-control" name="description" rows="4" required></textarea></div><div class="col-md-6"><label class="form-label">Precio</label><div class="input-group"><span class="input-group-text">$</span><input class="form-control" type="number" step="0.01" name="price" required></div></div><div class="col-md-6"><label class="form-label">Duración (minutos)</label><input class="form-control" type="number" name="duration_minutes" value="60" min="1"></div><div class="col-12"><label class="form-label">Ciudad</label><input class="form-control" type="text" name="city" required></div><div class="col-12"><button class="btn btn-primary" type="submit">Crear servicio</button><a class="btn btn-link" href="{% url 'dashboard' %}">Cancelar</a></div></form></section></div>{% endblock %}
