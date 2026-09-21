@@ -1,6 +1,6 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
-from django.db.models import Avg
+from django.db.models import Avg, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import RegistrationForm
@@ -59,11 +59,36 @@ def dashboard(request):
             profile.avatar = avatar
             profile.save(update_fields=['avatar'])
         return redirect('dashboard')
+
+    selected_status = request.GET.get('status', 'all')
+    selected_period = request.GET.get('period', 'all')
+
     pets = Pet.objects.filter(owner=request.user)
     available_pets = Pet.objects.filter(available=True).select_related('owner') if profile.role == 'walker' else []
     my_offers = ServiceOffer.objects.filter(walker=request.user) if profile.role == 'walker' else []
     bookings = Booking.objects.filter(owner=request.user) | Booking.objects.filter(walker=request.user)
     bookings = bookings.distinct().order_by('-created_at')
+
+    history_base = Booking.objects.filter(owner=request.user).select_related('service', 'walker').order_by('-date', '-time')
+    if selected_status != 'all':
+        history_base = history_base.filter(status=selected_status)
+    if selected_period != 'all':
+        history_base = history_base.filter(date__year=selected_period[:4], date__month=selected_period[5:7])
+
+    owner_history = history_base
+
+    walker_history = Booking.objects.filter(walker=request.user).select_related('service', 'owner').order_by('-date', '-time')
+    if selected_status != 'all':
+        walker_history = walker_history.filter(status=selected_status)
+    if selected_period != 'all':
+        walker_history = walker_history.filter(date__year=selected_period[:4], date__month=selected_period[5:7])
+
+    total_earnings = walker_history.filter(status='completed').aggregate(total=Sum('service__price'))['total'] or 0
+
+    all_periods = sorted({
+        booking.date.strftime('%Y-%m') for booking in Booking.objects.filter(owner=request.user) | Booking.objects.filter(walker=request.user)
+    }, reverse=True)
+
     return render(
         request,
         'pet_services/dashboard.html',
@@ -73,6 +98,19 @@ def dashboard(request):
             'available_pets': available_pets,
             'my_offers': my_offers,
             'bookings': bookings,
+            'owner_history': owner_history,
+            'walker_history': walker_history,
+            'total_earnings': total_earnings,
+            'selected_status': selected_status,
+            'selected_period': selected_period,
+            'history_periods': all_periods,
+            'status_choices': [
+                ('all', 'Todos'),
+                ('pending', 'Pendiente'),
+                ('accepted', 'Aceptado'),
+                ('rejected', 'Rechazado'),
+                ('completed', 'Completado'),
+            ],
         },
     )
 

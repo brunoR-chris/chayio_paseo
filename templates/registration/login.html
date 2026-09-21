@@ -3,13 +3,39 @@
 {% block title %}Iniciar sesión | Chayio{% endblock %}
 
 {% block content %}
-<div class="container"><section class="form-card"><div class="eyebrow mb-2">Qué bueno verte</div><h1>Iniciar sesión</h1><p class="text-secondary">Continúa gestionando tus paseos y mascotas.</p>
-    {% if form.errors %}<div class="alert alert-danger">El usuario o la contraseña no son válidos. Inténtalo de nuevo.</div>{% endif %}
-    <form method="post" class="mt-4">{% csrf_token %}
-        {{ form.username.errors }}<label class="form-label" for="id_username">Usuario</label><input class="form-control" type="text" name="username" id="id_username" required autofocus>
-        {{ form.password.errors }}<label class="form-label mt-3" for="id_password">Contraseña</label><input class="form-control" type="password" name="password" id="id_password" required>
-        <input type="hidden" name="next" value="{{ next }}"><button class="btn btn-primary w-100 mt-4" type="submit">Entrar</button>
-    </form>
-    <p class="mt-4 mb-2">¿Todavía no tienes una cuenta? <a href="{% url 'register' %}">Regístrate como dueño o paseador</a></p><a href="{% url 'home' %}">Volver al inicio</a>
-</section></div>
+<div class="container mx-auto px-4 py-16">
+    <section class="mx-auto max-w-xl rounded-[28px] border border-slate-200 bg-white p-6 shadow-soft md:p-8">
+        <div class="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-brand-500">Qué bueno verte</div>
+        <h1 class="text-4xl font-black tracking-[-0.06em] text-slate-900">Iniciar sesión</h1>
+        <p class="mt-3 text-slate-600">Continúa gestionando tus paseos y mascotas.</p>
+
+        {% if form.errors %}
+            <div class="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">El usuario o la contraseña no son válidos. Inténtalo de nuevo.</div>
+        {% endif %}
+
+        <form method="post" class="mt-6 space-y-4">
+            {% csrf_token %}
+
+            <div>
+                <label class="mb-2 block text-sm font-semibold text-slate-700" for="id_username">Usuario</label>
+                {{ form.username.errors }}
+                <input class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-100" type="text" name="username" id="id_username" required autofocus>
+            </div>
+
+            <div>
+                <label class="mb-2 block text-sm font-semibold text-slate-700" for="id_password">Contraseña</label>
+                {{ form.password.errors }}
+                <input class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-100" type="password" name="password" id="id_password" required>
+            </div>
+
+            <input type="hidden" name="next" value="{{ next }}">
+            <button class="mt-2 w-full rounded-full bg-brand-500 px-4 py-3 text-base font-bold text-white transition hover:bg-brand-700" type="submit">Entrar</button>
+        </form>
+
+        <p class="mt-6 text-center text-sm text-slate-600">
+            ¿Todavía no tienes una cuenta? <a class="font-semibold text-brand-500" href="{% url 'register' %}">Regístrate como dueño o paseador</a>
+        </p>
+        <p class="mt-3 text-center text-sm"><a class="font-semibold text-slate-600" href="{% url 'home' %}">Volver al inicio</a></p>
+    </section>
+</div>
 {% endblock %}

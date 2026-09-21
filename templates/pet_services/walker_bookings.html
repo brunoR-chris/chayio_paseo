@@ -1,3 +1,53 @@
 {% extends 'base.html' %}
 {% block title %}Reservas del paseador | Chayio{% endblock %}
-{% block content %}<div class="container py-5"><div class="eyebrow mb-2">Tu agenda</div><h1>Reservas de paseos</h1><p><a href="{% url 'dashboard' %}">Volver al dashboard</a></p>{% if bookings %}<div class="row g-4 mt-2">{% for booking in bookings %}<div class="col-md-6"><article class="dashboard-card"><h2 class="h5">{{ booking.service.title }}</h2><p class="mb-2"><strong>Dueño:</strong> {{ booking.owner.get_full_name|default:booking.owner.username }}</p><p class="mb-2"><strong>Fecha:</strong> {{ booking.date }} · {{ booking.time }}</p><p class="mb-2"><strong>Estado:</strong> <span class="badge text-bg-light">{{ booking.get_status_display }}</span></p><p class="mb-3 text-secondary"><strong>Notas:</strong> {{ booking.notes|default:'Sin notas' }}</p>{% if booking.status == 'pending' %}<div class="d-flex gap-2"><form method="post" action="{% url 'respond_booking' booking.id 'accept' %}">{% csrf_token %}<button class="btn btn-primary btn-sm" type="submit">Aceptar reserva</button></form><form method="post" action="{% url 'respond_booking' booking.id 'reject' %}">{% csrf_token %}<button class="btn btn-outline-danger btn-sm" type="submit">Rechazar</button></form></div>{% elif booking.status == 'accepted' %}<div class="small text-success mb-2">Paseador confirmado{% if booking.owner_confirmed %} · Dueño confirmado{% else %} · Esperando confirmación del dueño{% endif %}</div>{% if booking.owner_confirmed %}<form method="post" action="{% url 'complete_booking' booking.id %}">{% csrf_token %}<button class="btn btn-success btn-sm" type="submit">Marcar como completado</button></form>{% endif %}{% endif %}</article></div>{% endfor %}</div>{% else %}<div class="empty-state mt-4">No tienes reservas todavía.</div>{% endif %}</div>{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-12">
+	<div class="mb-8 flex flex-wrap items-end justify-between gap-3">
+		<div>
+			<div class="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-brand-500">Tu agenda</div>
+			<h1 class="text-4xl font-black tracking-[-0.06em] text-slate-900">Reservas de paseos</h1>
+		</div>
+		<a class="text-sm font-semibold text-brand-500" href="{% url 'dashboard' %}">Volver al dashboard</a>
+	</div>
+
+	{% if bookings %}
+		<div class="grid gap-6 md:grid-cols-2">
+			{% for booking in bookings %}
+				<article class="rounded-[26px] border border-slate-200 bg-white p-6 shadow-soft">
+					<div class="mb-4 flex items-start justify-between gap-3">
+						<h2 class="text-xl font-bold text-slate-900">{{ booking.service.title }}</h2>
+						<span class="inline-flex rounded-full bg-lime-100 px-3 py-1 text-xs font-bold text-brand-700">{{ booking.get_status_display }}</span>
+					</div>
+					<div class="space-y-2 text-sm text-slate-600">
+						<p><strong class="text-slate-800">Dueño:</strong> {{ booking.owner.get_full_name|default:booking.owner.username }}</p>
+						<p><strong class="text-slate-800">Fecha:</strong> {{ booking.date }} · {{ booking.time }}</p>
+						<p><strong class="text-slate-800">Notas:</strong> {{ booking.notes|default:'Sin notas' }}</p>
+					</div>
+					{% if booking.status == 'pending' %}
+						<div class="mt-5 flex flex-wrap gap-2">
+							<form method="post" action="{% url 'respond_booking' booking.id 'accept' %}">
+								{% csrf_token %}
+								<button class="rounded-full bg-brand-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-brand-700" type="submit">Aceptar reserva</button>
+							</form>
+							<form method="post" action="{% url 'respond_booking' booking.id 'reject' %}">
+								{% csrf_token %}
+								<button class="rounded-full border border-red-300 px-4 py-2 text-sm font-bold text-red-600 transition hover:bg-red-50" type="submit">Rechazar</button>
+							</form>
+						</div>
+					{% elif booking.status == 'accepted' %}
+						<div class="mt-5 text-sm font-semibold text-brand-500">Paseador confirmado{% if booking.owner_confirmed %} · Dueño confirmado{% else %} · Esperando confirmación del dueño{% endif %}</div>
+						{% if booking.owner_confirmed %}
+							<form class="mt-3" method="post" action="{% url 'complete_booking' booking.id %}">
+								{% csrf_token %}
+								<button class="rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-white" type="submit">Marcar como completado</button>
+							</form>
+						{% endif %}
+					{% endif %}
+				</article>
+			{% endfor %}
+		</div>
+	{% else %}
+		<div class="rounded-[22px] border border-dashed border-slate-300 bg-white px-6 py-10 text-center text-slate-500">No tienes reservas todavía.</div>
+	{% endif %}
+</div>
+{% endblock %}

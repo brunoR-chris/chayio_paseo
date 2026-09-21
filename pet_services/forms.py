@@ -34,6 +34,62 @@ class RegistrationForm(UserCreationForm):
             'password2': 'Confirmar contraseña',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.error_messages.update({
+            'password_mismatch': 'Las contraseñas no coinciden.',
+        })
+
+        self.fields['username'].help_text = 'Solo puedes usar letras, números y @/./+/-/_.'
+        self.fields['username'].error_messages.update({
+            'required': 'Escribe un nombre de usuario.',
+            'unique': 'Este nombre de usuario ya está en uso.',
+        })
+
+        self.fields['password1'].help_text = 'Usa al menos 8 caracteres y evita que sea muy parecida a tu información personal.'
+        self.fields['password1'].error_messages.update({
+            'required': 'Escribe una contraseña.',
+            'password_too_short': 'La contraseña debe tener al menos 8 caracteres.',
+            'password_too_common': 'La contraseña es demasiado común.',
+            'password_entirely_numeric': 'La contraseña no puede contener solo números.',
+        })
+
+        self.fields['password2'].help_text = 'Ingresa la misma contraseña para confirmar.'
+        self.fields['password2'].error_messages.update({
+            'required': 'Confirma tu contraseña.',
+        })
+
+        self.fields['first_name'].error_messages.update({
+            'required': 'Escribe tu nombre.',
+        })
+        self.fields['last_name'].error_messages.update({
+            'required': 'Escribe tu apellido.',
+        })
+        self.fields['email'].error_messages.update({
+            'required': 'Escribe tu correo electrónico.',
+            'invalid': 'Introduce un correo electrónico válido.',
+        })
+        self.fields['role'].error_messages.update({
+            'required': 'Selecciona el tipo de cuenta.',
+        })
+        self.fields['phone'].error_messages.update({
+            'required': 'Escribe tu teléfono.',
+        })
+        self.fields['address'].error_messages.update({
+            'required': 'Escribe tu dirección.',
+        })
+
+        for field_name, field in self.fields.items():
+            if field_name == 'role':
+                field.widget.attrs.update({'class': 'form-select'} )
+            elif field_name == 'bio':
+                field.widget.attrs.update({'class': 'form-control', 'rows': 3})
+            elif field_name in {'password1', 'password2'}:
+                field.widget.attrs.update({'class': 'form-control'})
+            else:
+                field.widget.attrs.update({'class': 'form-control'})
+
     def save(self, commit=True):
         user = super().save(commit=commit)
         if commit:
