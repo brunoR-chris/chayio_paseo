@@ -1,6 +1,9 @@
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 class UserProfile(models.Model):
@@ -16,6 +19,11 @@ class UserProfile(models.Model):
     address = models.CharField(max_length=255, blank=True)
     avatar = models.FileField(upload_to='avatars/', blank=True)
     created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(role__in=['owner', 'walker']), name='profile_role_valid'),
+        ]
 
     def __str__(self):
         return f"{self.user.get_full_name() or self.user.username} ({self.role})"
@@ -45,6 +53,12 @@ class ServiceOffer(models.Model):
     available = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(price__gt=0), name='offer_price_positive'),
+            models.CheckConstraint(condition=Q(duration_minutes__gt=0), name='offer_duration_positive'),
+        ]
+
     def __str__(self):
         return self.title
 
@@ -52,14 +66,14 @@ class ServiceOffer(models.Model):
 class Booking(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pendiente'),
-        ('accepted', 'Aceptado'),
-        ('rejected', 'Rechazado'),
+        ('confirmed', 'Confirmada'),
+        ('canceled', 'Cancelada'),
         ('completed', 'Completado'),
     ]
 
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bookings_as_owner')
-    walker = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bookings_as_walker')
     service = models.ForeignKey('ServiceOffer', on_delete=models.CASCADE, related_name='bookings')
+    pet = models.ForeignKey('Pet', on_delete=models.PROTECT, related_name='bookings')
     date = models.DateField()
     time = models.TimeField()
     notes = models.TextField(blank=True)
@@ -68,20 +82,46 @@ class Booking(models.Model):
     walker_confirmed = models.BooleanField(default=False)
     created_at = models.DateTimeField(default=timezone.now)
 
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(status__in=['pending', 'confirmed', 'canceled', 'completed']),
+                name='booking_status_valid',
+            ),
+        ]
+
+    def clean(self):
+        if self.owner_id and self.pet_id and self.owner_id != self.pet.owner_id:
+            raise ValidationError({'pet': 'La mascota debe pertenecer al dueño de la reserva.'})
+
+        if self.service_id and self.date and self.time:
+            conflicting_booking = Booking.objects.filter(
+                service__walker_id=self.service.walker_id,
+                date=self.date,
+                time=self.time,
+            ).exclude(pk=self.pk)
+            if conflicting_booking.exists():
+                raise ValidationError('El paseador ya tiene una reserva en esa fecha y hora.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)
+
     def __str__(self):
-        return f"Reserva de {self.owner} para {self.service}"
+        return f"Reserva de {self.pet} para {self.service}"
 
 
 class WalkerRating(models.Model):
     booking = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name='rating')
-    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='walker_ratings')
-    walker = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_ratings')
-    score = models.PositiveSmallIntegerField()
+    score = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(condition=Q(score__gte=1, score__lte=5), name='rating_score_between_1_5'),
+        ]
 
     def __str__(self):
-        return f"{self.score}/5 para {self.walker}"
+        return f"{self.score}/5 para {self.booking.service.walker}"

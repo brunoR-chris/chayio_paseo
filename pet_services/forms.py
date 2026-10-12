@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 
-from .models import UserProfile
+from .models import Booking, UserProfile
 
 
 class RegistrationForm(UserCreationForm):
@@ -10,8 +10,8 @@ class RegistrationForm(UserCreationForm):
     last_name = forms.CharField(max_length=150, label='Apellido')
     email = forms.EmailField(label='Correo electrónico')
     role = forms.ChoiceField(choices=UserProfile.ROLE_CHOICES, label='Quiero registrarme como')
-    phone = forms.CharField(max_length=20, label='Teléfono')
-    address = forms.CharField(max_length=255, label='Dirección')
+    phone = forms.CharField(max_length=20, label='Teléfono (opcional)', required=False)
+    address = forms.CharField(max_length=255, label='Dirección (opcional)', required=False)
     bio = forms.CharField(label='Información adicional', required=False, widget=forms.Textarea(attrs={'rows': 3}))
 
     class Meta:
@@ -101,3 +101,19 @@ class RegistrationForm(UserCreationForm):
                 bio=self.cleaned_data['bio'],
             )
         return user
+
+
+class BookingForm(forms.ModelForm):
+    class Meta:
+        model = Booking
+        fields = ('pet', 'date', 'time', 'notes')
+        widgets = {
+            'pet': forms.Select(attrs={'class': 'form-select'}),
+            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'notes': forms.Textarea(attrs={'rows': 4, 'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, owner, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['pet'].queryset = owner.pets.all()

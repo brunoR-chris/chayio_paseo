@@ -25,20 +25,30 @@
 
         <form method="post" class="mt-6 grid gap-4 md:grid-cols-2">
             {% csrf_token %}
+            {% if form.non_field_errors %}<div class="md:col-span-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{{ form.non_field_errors }}</div>{% endif %}
+            {% if not form.pet.field.queryset %}<p class="md:col-span-2 text-sm text-red-700">Registra una mascota antes de reservar este servicio.</p>{% endif %}
             <div>
-                <label class="mb-2 block text-sm font-semibold text-slate-700">Fecha</label>
-                <input class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-100" type="date" name="date" required>
+                <label class="mb-2 block text-sm font-semibold text-slate-700" for="{{ form.pet.id_for_label }}">Mascota</label>
+                {{ form.pet }}
+                {{ form.pet.errors }}
             </div>
             <div>
-                <label class="mb-2 block text-sm font-semibold text-slate-700">Hora</label>
-                <input class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-100" type="time" name="time" required>
+                <label class="mb-2 block text-sm font-semibold text-slate-700" for="{{ form.date.id_for_label }}">Fecha</label>
+                {{ form.date }}
+                {{ form.date.errors }}
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-semibold text-slate-700" for="{{ form.time.id_for_label }}">Hora</label>
+                {{ form.time }}
+                {{ form.time.errors }}
             </div>
             <div class="md:col-span-2">
-                <label class="mb-2 block text-sm font-semibold text-slate-700">Instrucciones o detalles</label>
-                <textarea class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-100" name="notes" rows="4"></textarea>
+                <label class="mb-2 block text-sm font-semibold text-slate-700" for="{{ form.notes.id_for_label }}">Instrucciones o detalles</label>
+                {{ form.notes }}
+                {{ form.notes.errors }}
             </div>
             <div class="md:col-span-2 mt-2 flex flex-wrap items-center gap-3">
-                <button class="rounded-full bg-brand-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-700" type="submit">Confirmar reserva</button>
+                <button class="rounded-full bg-brand-500 px-5 py-3 text-sm font-bold text-white transition hover:bg-brand-700" type="submit" {% if not form.pet.field.queryset %}disabled{% endif %}>Solicitar reserva</button>
                 <a class="text-sm font-semibold text-slate-600" href="{% url 'home' %}">Cancelar</a>
             </div>
         </form>

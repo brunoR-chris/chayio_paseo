@@ -25,12 +25,24 @@ class ServiceOfferAdmin(admin.ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(admin.ModelAdmin):
-    list_display = ('owner', 'walker', 'service', 'date', 'status', 'owner_confirmed', 'walker_confirmed')
+    list_display = ('owner', 'walker_name', 'pet', 'service', 'date', 'status', 'owner_confirmed', 'walker_confirmed')
     list_filter = ('status', 'date')
-    search_fields = ('owner__username', 'walker__username', 'service__title')
+    search_fields = ('owner__username', 'service__walker__username', 'service__title', 'pet__name')
+
+    @admin.display(ordering='service__walker__username', description='Paseador')
+    def walker_name(self, booking):
+        return booking.service.walker
 
 
 @admin.register(WalkerRating)
 class WalkerRatingAdmin(admin.ModelAdmin):
-    list_display = ('walker', 'owner', 'score', 'booking', 'created_at')
+    list_display = ('walker_name', 'owner_name', 'score', 'booking', 'created_at')
     list_filter = ('score',)
+
+    @admin.display(ordering='booking__service__walker__username', description='Paseador')
+    def walker_name(self, rating):
+        return rating.booking.service.walker
+
+    @admin.display(ordering='booking__owner__username', description='Dueño')
+    def owner_name(self, rating):
+        return rating.booking.owner

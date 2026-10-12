@@ -1,15 +1,18 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.db.models import Avg, Sum
 from django.shortcuts import get_object_or_404, redirect, render
+from decimal import Decimal, InvalidOperation
 
-from .forms import RegistrationForm
+from .forms import BookingForm, RegistrationForm
 from .models import Booking, Pet, ServiceOffer, UserProfile, WalkerRating
 
 
 def home(request):
     offers = ServiceOffer.objects.filter(available=True).select_related('walker').annotate(
-        walker_rating=Avg('walker__received_ratings__score'),
+        walker_rating=Avg('bookings__rating__score'),
     )[:12]
     return render(request, 'pet_services/home.html', {'offers': offers})
 
@@ -30,24 +33,22 @@ def register(request):
 @login_required
 def book_service(request, offer_id):
     offer = ServiceOffer.objects.select_related('walker').get(id=offer_id)
+    form = BookingForm(request.POST or None, owner=request.user)
 
-    if request.method == 'POST':
-        date = request.POST.get('date', '').strip()
-        time = request.POST.get('time', '').strip()
-        notes = request.POST.get('notes', '').strip()
+    if request.method == 'POST' and form.is_valid():
+        booking = form.save(commit=False)
+        booking.owner = request.user
+        booking.service = offer
+        try:
+            with transaction.atomic():
+                booking.save()
+            return render(request, 'pet_services/booking_created.html', {'offer': offer, 'booking': booking})
+        except ValidationError as error:
+            form.add_error(None, error)
+        except IntegrityError:
+            form.add_error(None, 'El paseador ya tiene una reserva en esa fecha y hora.')
 
-        if date and time:
-            Booking.objects.create(
-                owner=request.user,
-                walker=offer.walker,
-                service=offer,
-                date=date,
-                time=time,
-                notes=notes,
-            )
-            return render(request, 'pet_services/booking_created.html', {'offer': offer})
-
-    return render(request, 'pet_services/book_service.html', {'offer': offer})
+    return render(request, 'pet_services/book_service.html', {'offer': offer, 'form': form})
 
 
 @login_required
@@ -66,10 +67,10 @@ def dashboard(request):
     pets = Pet.objects.filter(owner=request.user)
     available_pets = Pet.objects.filter(available=True).select_related('owner') if profile.role == 'walker' else []
     my_offers = ServiceOffer.objects.filter(walker=request.user) if profile.role == 'walker' else []
-    bookings = Booking.objects.filter(owner=request.user) | Booking.objects.filter(walker=request.user)
+    bookings = Booking.objects.filter(owner=request.user) | Booking.objects.filter(service__walker=request.user)
     bookings = bookings.distinct().order_by('-created_at')
 
-    history_base = Booking.objects.filter(owner=request.user).select_related('service', 'walker').order_by('-date', '-time')
+    history_base = Booking.objects.filter(owner=request.user).select_related('service__walker', 'pet').order_by('-date', '-time')
     if selected_status != 'all':
         history_base = history_base.filter(status=selected_status)
     if selected_period != 'all':
@@ -77,7 +78,7 @@ def dashboard(request):
 
     owner_history = history_base
 
-    walker_history = Booking.objects.filter(walker=request.user).select_related('service', 'owner').order_by('-date', '-time')
+    walker_history = Booking.objects.filter(service__walker=request.user).select_related('service', 'owner', 'pet').order_by('-date', '-time')
     if selected_status != 'all':
         walker_history = walker_history.filter(status=selected_status)
     if selected_period != 'all':
@@ -86,7 +87,7 @@ def dashboard(request):
     total_earnings = walker_history.filter(status='completed').aggregate(total=Sum('service__price'))['total'] or 0
 
     all_periods = sorted({
-        booking.date.strftime('%Y-%m') for booking in Booking.objects.filter(owner=request.user) | Booking.objects.filter(walker=request.user)
+        booking.date.strftime('%Y-%m') for booking in Booking.objects.filter(owner=request.user) | Booking.objects.filter(service__walker=request.user)
     }, reverse=True)
 
     return render(
@@ -107,8 +108,8 @@ def dashboard(request):
             'status_choices': [
                 ('all', 'Todos'),
                 ('pending', 'Pendiente'),
-                ('accepted', 'Aceptado'),
-                ('rejected', 'Rechazado'),
+                ('confirmed', 'Confirmada'),
+                ('canceled', 'Cancelada'),
                 ('completed', 'Completado'),
             ],
         },
@@ -142,6 +143,7 @@ def create_pet(request):
 
 @login_required
 def create_offer(request):
+    error = None
     if request.method == 'POST':
         title = request.POST.get('title', '').strip()
         description = request.POST.get('description', '').strip()
@@ -149,31 +151,45 @@ def create_offer(request):
         duration = request.POST.get('duration_minutes', '60').strip()
         city = request.POST.get('city', '').strip()
 
-        if title and description and price and city:
-            ServiceOffer.objects.create(
-                walker=request.user,
-                title=title,
-                description=description,
-                price=price,
-                duration_minutes=int(duration) if duration else 60,
-                city=city,
-            )
-            return render(request, 'pet_services/offer_created.html')
+        try:
+            price_value = Decimal(price)
+            duration_value = int(duration) if duration else 60
+            if not price_value.is_finite() or price_value <= 0 or duration_value <= 0:
+                raise ValueError
+        except (InvalidOperation, ValueError):
+            error = 'El precio y la duración deben ser mayores que cero.'
+        else:
+            if title and description and city:
+                offer = ServiceOffer(
+                    walker=request.user,
+                    title=title,
+                    description=description,
+                    price=price_value,
+                    duration_minutes=duration_value,
+                    city=city,
+                )
+                try:
+                    offer.full_clean()
+                except ValidationError as validation_error:
+                    error = 'Revisa el precio y la duración del servicio.'
+                else:
+                    offer.save()
+                    return render(request, 'pet_services/offer_created.html')
 
-    return render(request, 'pet_services/create_offer.html')
+    return render(request, 'pet_services/create_offer.html', {'error': error})
 
 
 @login_required
 def bookings_for_walker(request):
     offers = ServiceOffer.objects.filter(walker=request.user)
-    bookings = Booking.objects.filter(walker=request.user).select_related('owner', 'service').order_by('-created_at')
+    bookings = Booking.objects.filter(service__walker=request.user).select_related('owner', 'service', 'pet').order_by('-created_at')
     return render(request, 'pet_services/walker_bookings.html', {'bookings': bookings, 'offers': offers})
 
 
 @login_required
 def confirm_booking(request, booking_id):
     booking = get_object_or_404(Booking, id=booking_id, owner=request.user)
-    if request.method == 'POST' and booking.status == 'accepted':
+    if request.method == 'POST' and booking.status == 'confirmed':
         booking.owner_confirmed = True
         booking.save(update_fields=['owner_confirmed'])
     return redirect('dashboard')
@@ -181,21 +197,21 @@ def confirm_booking(request, booking_id):
 
 @login_required
 def respond_booking(request, booking_id, response):
-    booking = get_object_or_404(Booking, id=booking_id, walker=request.user)
+    booking = get_object_or_404(Booking, id=booking_id, service__walker=request.user)
     if request.method == 'POST' and booking.status == 'pending':
         if response == 'accept':
-            booking.status = 'accepted'
+            booking.status = 'confirmed'
             booking.walker_confirmed = True
         elif response == 'reject':
-            booking.status = 'rejected'
+            booking.status = 'canceled'
         booking.save(update_fields=['status', 'walker_confirmed'])
     return redirect('walker_bookings')
 
 
 @login_required
 def complete_booking(request, booking_id):
-    booking = get_object_or_404(Booking, id=booking_id, walker=request.user)
-    if request.method == 'POST' and booking.status == 'accepted' and booking.owner_confirmed and booking.walker_confirmed:
+    booking = get_object_or_404(Booking, id=booking_id, service__walker=request.user)
+    if request.method == 'POST' and booking.status == 'confirmed' and booking.owner_confirmed and booking.walker_confirmed:
         booking.status = 'completed'
         booking.save(update_fields=['status'])
     return redirect('walker_bookings')
@@ -209,8 +225,6 @@ def rate_walker(request, booking_id):
         if score in {'1', '2', '3', '4', '5'}:
             WalkerRating.objects.create(
                 booking=booking,
-                owner=request.user,
-                walker=booking.walker,
                 score=int(score),
                 comment=request.POST.get('comment', '').strip(),
             )
