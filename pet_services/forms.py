@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 from .models import Booking, UserProfile
 
@@ -10,7 +11,18 @@ class RegistrationForm(UserCreationForm):
     last_name = forms.CharField(max_length=150, label='Apellido')
     email = forms.EmailField(label='Correo electrónico')
     role = forms.ChoiceField(choices=UserProfile.ROLE_CHOICES, label='Quiero registrarme como')
-    phone = forms.CharField(max_length=20, label='Teléfono (opcional)', required=False)
+    phone = forms.RegexField(
+        regex=r'^[0-9]*$',
+        max_length=20,
+        label='Teléfono (opcional)',
+        required=False,
+        error_messages={'invalid': 'El teléfono solo puede contener números.'},
+        widget=forms.TextInput(attrs={
+            'inputmode': 'numeric',
+            'pattern': '[0-9]*',
+            'oninput': "this.value = this.value.replace(/[^0-9]/g, '')",
+        }),
+    )
     address = forms.CharField(max_length=255, label='Dirección (opcional)', required=False)
     bio = forms.CharField(label='Información adicional', required=False, widget=forms.Textarea(attrs={'rows': 3}))
 
@@ -117,3 +129,10 @@ class BookingForm(forms.ModelForm):
     def __init__(self, *args, owner, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['pet'].queryset = owner.pets.all()
+        self.fields['date'].widget.attrs['min'] = timezone.localdate().isoformat()
+
+    def clean_date(self):
+        booking_date = self.cleaned_data['date']
+        if booking_date < timezone.localdate():
+            raise forms.ValidationError('La fecha del paseo no puede ser anterior al día de hoy.')
+        return booking_date

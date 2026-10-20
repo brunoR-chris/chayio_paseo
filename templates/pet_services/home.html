@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Chayio | Paseos para mascotas{% endblock %}
 
@@ -13,7 +14,16 @@
                 <a class="mt-8 inline-flex items-center rounded-full bg-lime-300 px-6 py-3 text-base font-bold text-brand-700 shadow-soft transition hover:bg-lime-200" href="{% if user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'login' %}{% endif %}">{% if user.is_authenticated %}Ir a mi dashboard{% else %}Comenzar{% endif %}</a>
             </div>
 
-            <div class="rounded-[28px] border border-slate-200 bg-brand-500 p-8 text-white shadow-soft">
+            <div class="rounded-[28px] border border-slate-200 bg-brand-500 p-6 text-white shadow-soft md:p-8">
+                <div class="mb-6 overflow-hidden rounded-2xl bg-[#f1f6e9]">
+                    <img
+                        class="h-[26rem] w-full object-cover object-center"
+                        src="{% static 'images/chayio-pitbull.jpeg' %}"
+                        alt="Pitbull amigable junto a su dueño"
+                        width="768"
+                        height="1024"
+                    >
+                </div>
                 <div class="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-lime-200">Así de sencillo</div>
                 <h2 class="mb-6 text-3xl font-bold tracking-tight">Una mejor rutina para todos.</h2>
                 <div class="space-y-5">
