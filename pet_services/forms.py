@@ -26,7 +26,7 @@ class RegistrationForm(UserCreationForm):
     address = forms.CharField(max_length=255, label='Dirección (opcional)', required=False)
     bio = forms.CharField(label='Información adicional', required=False, widget=forms.Textarea(attrs={'rows': 3}))
 
-    class Meta:
+    class Meta(UserCreationForm.Meta):
         model = User
         fields = (
             'username',
@@ -128,7 +128,10 @@ class BookingForm(forms.ModelForm):
 
     def __init__(self, *args, owner, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['pet'].queryset = owner.pets.all()
+        pet_field = self.fields['pet']
+        if not isinstance(pet_field, forms.ModelChoiceField):
+            raise TypeError('El campo de mascota debe ser un ModelChoiceField.')
+        pet_field.queryset = owner.pets.all()
         self.fields['date'].widget.attrs['min'] = timezone.localdate().isoformat()
 
     def clean_date(self):

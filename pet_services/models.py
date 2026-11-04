@@ -91,12 +91,18 @@ class Booking(models.Model):
         ]
 
     def clean(self):
-        if self.owner_id and self.pet_id and self.owner_id != self.pet.owner_id:
+        owner_id = getattr(self, 'owner_id', None)
+        pet_id = getattr(self, 'pet_id', None)
+        pet = getattr(self, 'pet', None)
+
+        if owner_id and pet_id and pet is not None and owner_id != getattr(pet, 'owner_id', None):
             raise ValidationError({'pet': 'La mascota debe pertenecer al dueño de la reserva.'})
 
-        if self.service_id and self.date and self.time:
+        service_id = getattr(self, 'service_id', None)
+        service = getattr(self, 'service', None)
+        if service_id and self.date and self.time and service is not None:
             conflicting_booking = Booking.objects.filter(
-                service__walker_id=self.service.walker_id,
+                service__walker_id=getattr(service, 'walker_id', None),
                 date=self.date,
                 time=self.time,
             ).exclude(pk=self.pk)
