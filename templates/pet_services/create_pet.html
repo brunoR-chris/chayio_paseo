@@ -18,8 +18,20 @@
                 <input class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-100" type="text" name="species" placeholder="Perro, gato..." required>
             </div>
             <div>
-                <label class="mb-2 block text-sm font-semibold text-slate-700">Raza</label>
-                <input class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-100" type="text" name="breed">
+                <label class="mb-2 block text-sm font-semibold text-slate-700" for="breed">Raza del perro</label>
+                <select class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-100" name="breed" id="breed">
+                    <option value="" {% if not breed_value %}selected{% endif %}>Selecciona una raza (opcional)</option>
+                    {% for breed_option in dog_breeds %}
+                        <option value="{{ breed_option }}" {% if breed_value == breed_option %}selected{% endif %}>{{ breed_option }}</option>
+                    {% endfor %}
+                    <option value="{{ mixed_breed }}" {% if breed_value == mixed_breed %}selected{% endif %}>Mestizo / sin raza definida</option>
+                    <option value="{{ other_breed_value }}" {% if breed_value == other_breed_value %}selected{% endif %}>Otra raza (especificar)</option>
+                </select>
+                <div id="other-breed-container" class="mt-3 {% if breed_value != other_breed_value %}hidden{% endif %}">
+                    <label class="mb-2 block text-sm font-semibold text-slate-700" for="other_breed">Especifica la raza</label>
+                    <input class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-100" type="text" name="other_breed" id="other_breed" maxlength="100" value="{{ other_breed }}" {% if breed_value == other_breed_value %}required{% endif %}>
+                </div>
+                {% if form_error %}<p class="mt-2 text-sm font-semibold text-red-600">{{ form_error }}</p>{% endif %}
             </div>
             <div>
                 <label class="mb-2 block text-sm font-semibold text-slate-700">Edad en años</label>
@@ -40,4 +52,16 @@
         </form>
     </section>
 </div>
+<script>
+    const breedSelect = document.getElementById('breed');
+    const otherBreedContainer = document.getElementById('other-breed-container');
+    const otherBreedInput = document.getElementById('other_breed');
+
+    breedSelect.addEventListener('change', () => {
+        const isOtherBreed = breedSelect.value === '{{ other_breed_value }}';
+        otherBreedContainer.classList.toggle('hidden', !isOtherBreed);
+        otherBreedInput.required = isOtherBreed;
+        if (!isOtherBreed) otherBreedInput.value = '';
+    });
+</script>
 {% endblock %}

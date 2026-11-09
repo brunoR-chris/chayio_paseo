@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
+from django.db import transaction
 from django.utils import timezone
 
 from .models import Booking, UserProfile
@@ -112,6 +113,66 @@ class RegistrationForm(UserCreationForm):
                 address=self.cleaned_data['address'],
                 bio=self.cleaned_data['bio'],
             )
+        return user
+
+
+class ProfileUpdateForm(forms.ModelForm):
+    phone = forms.RegexField(
+        regex=r'^[0-9]*$',
+        max_length=20,
+        label='Teléfono',
+        required=False,
+        error_messages={'invalid': 'El teléfono solo puede contener números.'},
+        widget=forms.TextInput(attrs={
+            'inputmode': 'numeric',
+            'pattern': '[0-9]*',
+        }),
+    )
+    address = forms.CharField(max_length=255, label='Dirección', required=False)
+    bio = forms.CharField(
+        label='Información adicional',
+        required=False,
+        widget=forms.Textarea(attrs={'rows': 3}),
+    )
+
+    class Meta:
+        model = User
+        fields = ('username', 'first_name', 'last_name', 'email')
+        labels = {
+            'username': 'Usuario',
+            'first_name': 'Nombre',
+            'last_name': 'Apellido',
+            'email': 'Correo electrónico',
+        }
+
+    def __init__(self, *args, profile, **kwargs):
+        self.profile = profile
+        super().__init__(*args, **kwargs)
+        self.fields['phone'].initial = profile.phone
+        self.fields['address'].initial = profile.address
+        self.fields['bio'].initial = profile.bio
+        self.fields['username'].required = True
+        self.fields['first_name'].required = True
+        self.fields['last_name'].required = True
+        self.fields['email'].required = True
+        self.fields['username'].help_text = 'Solo puedes usar letras, números y @/./+/-/_.'
+        self.fields['username'].error_messages.update({
+            'required': 'Escribe un nombre de usuario.',
+            'unique': 'Este nombre de usuario ya está en uso.',
+        })
+
+        for field in self.fields.values():
+            field.widget.attrs.update({'class': 'form-control'})
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        if commit:
+            with transaction.atomic():
+                user.save()
+                self.profile.phone = self.cleaned_data['phone']
+                self.profile.address = self.cleaned_data['address']
+                self.profile.bio = self.cleaned_data['bio']
+                self.profile.save(update_fields=['phone', 'address', 'bio'])
         return user
 
 

@@ -70,11 +70,12 @@
                     <h3 class="mb-1 text-xl font-bold text-slate-900">{{ offer.title }}</h3>
                     <div class="text-sm text-slate-500">{{ offer.city }} · {{ offer.duration_minutes }} min</div>
                 </div>
-                <p class="flex-1 text-sm leading-6 text-slate-600">{{ offer.description|truncatechars:120 }}</p>
+                <p class="flex-1 whitespace-pre-line break-words text-sm leading-6 text-slate-600">{{ offer.description }}</p>
                 <div class="mt-5 border-t border-slate-200 pt-4">
                     <div class="text-2xl font-black tracking-tight text-brand-500">$ {{ offer.price }}</div>
                     <div class="mt-2 text-sm text-slate-500">Paseador: {{ offer.walker.get_full_name|default:offer.walker.username }}</div>
                     <div class="mt-1 text-sm text-amber-500">{% if offer.walker_rating %}★ {{ offer.walker_rating|floatformat:1 }}/5{% else %}Sin calificaciones{% endif %}</div>
+                    {% include 'pet_services/_service_reviews.html' with bookings=offer.completed_bookings %}
                     <a class="mt-5 inline-flex items-center rounded-full bg-brand-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700" href="{% url 'book_service' offer.id %}">Reservar</a>
                 </div>
             </article>

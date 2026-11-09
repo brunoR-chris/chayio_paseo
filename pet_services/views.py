@@ -2,18 +2,27 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import login
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from django.db.models import Avg, Sum
+from django.db.models import Avg, Prefetch, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from decimal import Decimal, InvalidOperation
 
-from .forms import BookingForm, RegistrationForm
+from .forms import BookingForm, ProfileUpdateForm, RegistrationForm
+from .dog_breeds import DOG_BREEDS, MIXED_BREED, OTHER_BREED_VALUE
 from .models import Booking, Pet, ServiceOffer, UserProfile, WalkerRating
 
 
 def home(request):
+    completed_bookings = Booking.objects.filter(
+        status='completed',
+        rating__isnull=False,
+    ).select_related('owner').prefetch_related('rating')
     offers = ServiceOffer.objects.filter(available=True).select_related('walker').annotate(
         walker_rating=Avg('bookings__rating__score'),
-    )[:12]
+    ).prefetch_related(Prefetch(
+        'bookings',
+        queryset=completed_bookings,
+        to_attr='completed_bookings',
+    ))[:12]
     return render(request, 'pet_services/home.html', {'offers': offers})
 
 
@@ -32,7 +41,15 @@ def register(request):
 
 @login_required
 def book_service(request, offer_id):
-    offer = ServiceOffer.objects.select_related('walker').get(id=offer_id)
+    completed_bookings = Booking.objects.filter(
+        status='completed',
+        rating__isnull=False,
+    ).select_related('owner').prefetch_related('rating')
+    offer = ServiceOffer.objects.select_related('walker').prefetch_related(Prefetch(
+        'bookings',
+        queryset=completed_bookings,
+        to_attr='completed_bookings',
+    )).get(id=offer_id)
     form = BookingForm(request.POST or None, owner=request.user)
 
     if request.method == 'POST' and form.is_valid():
@@ -117,16 +134,53 @@ def dashboard(request):
 
 
 @login_required
+def edit_profile(request):
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    form = ProfileUpdateForm(
+        request.POST or None,
+        instance=request.user,
+        profile=profile,
+    )
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        return render(request, 'pet_services/edit_profile.html', {
+            'form': form,
+            'saved': True,
+        })
+
+    return render(request, 'pet_services/edit_profile.html', {'form': form})
+
+
+@login_required
 def create_pet(request):
+    breed_value = ''
+    other_breed_value = ''
+    form_error = None
+
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         species = request.POST.get('species', '').strip()
-        breed = request.POST.get('breed', '').strip()
+        breed_value = request.POST.get('breed', '').strip()
+        other_breed_value = request.POST.get('other_breed', '').strip()
+        if breed_value == OTHER_BREED_VALUE:
+            breed = other_breed_value
+            if not breed:
+                form_error = 'Escribe el nombre de la raza.'
+            elif len(breed) > 100:
+                form_error = 'La raza no puede superar los 100 caracteres.'
+        elif breed_value == MIXED_BREED or breed_value == '':
+            breed = breed_value
+        elif breed_value in DOG_BREEDS:
+            breed = breed_value
+        else:
+            breed = ''
+            form_error = 'Selecciona una raza de la lista o elige otra raza.'
+
         age = request.POST.get('age', '').strip()
         notes = request.POST.get('notes', '').strip()
         available = request.POST.get('available') == 'on'
 
-        if name and species:
+        if name and species and not form_error:
             Pet.objects.create(
                 owner=request.user,
                 name=name,
@@ -138,7 +192,14 @@ def create_pet(request):
             )
             return render(request, 'pet_services/pet_created.html')
 
-    return render(request, 'pet_services/create_pet.html')
+    return render(request, 'pet_services/create_pet.html', {
+        'dog_breeds': DOG_BREEDS,
+        'mixed_breed': MIXED_BREED,
+        'other_breed_value': OTHER_BREED_VALUE,
+        'breed_value': breed_value,
+        'other_breed': other_breed_value,
+        'form_error': form_error,
+    })
 
 
 @login_required

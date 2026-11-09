@@ -8,6 +8,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from .forms import BookingForm, RegistrationForm
+from .dog_breeds import MIXED_BREED
 from .models import Booking, Pet, ServiceOffer, UserProfile, WalkerRating
 
 
@@ -144,3 +145,188 @@ class RegistrationAndBookingFormTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn('date', form.errors)
+
+
+class PetRegistrationTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(username='pet-owner', password='test-password')
+        self.client.force_login(self.user)
+        self.url = '/mascota/nueva/'
+
+    def pet_data(self, breed):
+        return {
+            'name': 'Luna',
+            'species': 'Perro',
+            'breed': breed,
+            'age': '3',
+            'notes': '',
+            'available': 'on',
+        }
+
+    def test_registration_page_shows_dog_breeds_and_mixed_option(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Golden Retriever')
+        self.assertContains(response, 'Mestizo / sin raza definida')
+
+    def test_registration_saves_selected_breed_and_mixed_breed(self):
+        for breed in ('Golden Retriever', MIXED_BREED):
+            with self.subTest(breed=breed):
+                response = self.client.post(self.url, self.pet_data(breed))
+
+                self.assertEqual(response.status_code, 200)
+                self.assertTrue(Pet.objects.filter(owner=self.user, breed=breed).exists())
+
+    def test_registration_accepts_an_unlisted_breed_when_other_is_selected(self):
+        data = self.pet_data('__other__')
+        data['other_breed'] = 'Raza de prueba'
+
+        response = self.client.post(self.url, data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Pet.objects.filter(owner=self.user, breed='Raza de prueba').exists())
+
+    def test_registration_rejects_unlisted_breed_without_other_option(self):
+        response = self.client.post(self.url, self.pet_data('Raza inventada'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Selecciona una raza de la lista o elige otra raza.')
+        self.assertFalse(Pet.objects.filter(owner=self.user).exists())
+
+
+class ProfileUpdateTests(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create_user(
+            username='profile-owner',
+            first_name='Nombre',
+            last_name='Anterior',
+            email='old@example.com',
+        )
+        self.profile = UserProfile.objects.create(
+            user=self.user,
+            role='owner',
+            phone='111222',
+            address='Dirección anterior',
+            bio='Información anterior',
+        )
+        self.client.force_login(self.user)
+
+    def test_owner_can_update_personal_and_contact_information(self):
+        response = self.client.post('/perfil/editar/', {
+            'username': 'profile-owner-updated',
+            'first_name': 'Nombre nuevo',
+            'last_name': 'Apellido nuevo',
+            'email': 'new@example.com',
+            'phone': '123456789',
+            'address': 'Dirección nueva',
+            'bio': 'Información nueva',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'se actualizaron correctamente')
+        self.user.refresh_from_db()
+        self.profile.refresh_from_db()
+        self.assertEqual(self.user.username, 'profile-owner-updated')
+        self.assertEqual(self.user.first_name, 'Nombre nuevo')
+        self.assertEqual(self.user.last_name, 'Apellido nuevo')
+        self.assertEqual(self.user.email, 'new@example.com')
+        self.assertEqual(self.profile.phone, '123456789')
+        self.assertEqual(self.profile.address, 'Dirección nueva')
+        self.assertEqual(self.profile.bio, 'Información nueva')
+        self.assertEqual(self.profile.role, 'owner')
+
+    def test_walker_can_edit_profile_without_changing_role(self):
+        self.profile.role = 'walker'
+        self.profile.save(update_fields=['role'])
+
+        response = self.client.post('/perfil/editar/', {
+            'username': self.user.username,
+            'first_name': self.user.first_name,
+            'last_name': self.user.last_name,
+            'email': self.user.email,
+            'phone': '',
+            'address': '',
+            'bio': '',
+            'role': 'owner',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.role, 'walker')
+
+    def test_dashboard_only_shows_services_card_for_walkers(self):
+        owner_response = self.client.get('/dashboard/')
+        self.assertNotContains(owner_response, '>Mis servicios<')
+        self.assertContains(owner_response, '>Mis mascotas<')
+
+        self.profile.role = 'walker'
+        self.profile.save(update_fields=['role'])
+        walker_response = self.client.get('/dashboard/')
+        self.assertContains(walker_response, '>Mis servicios<')
+
+    def test_edit_page_requires_authentication(self):
+        self.client.logout()
+
+        response = self.client.get('/perfil/editar/')
+
+        self.assertEqual(response.status_code, 302)
+
+
+class ServiceReviewDisplayTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.walker = User.objects.create_user(
+            username='review-walker',
+            first_name='Paseador',
+            last_name='Prueba',
+        )
+        self.owner = User.objects.create_user(
+            username='review-owner',
+            first_name='Dueño',
+            last_name='Prueba',
+        )
+        self.pet = Pet.objects.create(owner=self.owner, name='Luna', species='Perro')
+        self.description = 'Descripción completa ' + ('con muchos detalles. ' * 12)
+        self.service = ServiceOffer.objects.create(
+            walker=self.walker,
+            title='Paseo con comentarios',
+            description=self.description,
+            price=Decimal('15.00'),
+            duration_minutes=45,
+            city='Posadas',
+        )
+
+    def create_booking(self, status, comment):
+        booking = Booking.objects.create(
+            owner=self.owner,
+            pet=self.pet,
+            service=self.service,
+            date=date(2026, 12, 10 if status == 'completed' else 11),
+            time=time(10, 0),
+            status=status,
+        )
+        WalkerRating.objects.create(booking=booking, score=5, comment=comment)
+        return booking
+
+    def test_home_shows_full_service_description_and_completed_owner_comments(self):
+        self.create_booking('completed', 'Comentario completo del paseo.')
+        self.create_booking('pending', 'Este comentario no debe mostrarse todavía.')
+
+        response = self.client.get('/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.description)
+        self.assertContains(response, 'Comentario completo del paseo.')
+        self.assertContains(response, 'Dueño Prueba')
+        self.assertNotContains(response, 'Este comentario no debe mostrarse todavía.')
+
+    def test_booking_page_shows_full_description_and_reviews(self):
+        self.create_booking('completed', 'Reseña visible en el detalle.')
+        self.client.force_login(self.owner)
+
+        response = self.client.get(f'/reservar/{self.service.pk}/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.description)
+        self.assertContains(response, 'Reseña visible en el detalle.')
