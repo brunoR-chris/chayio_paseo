@@ -22,6 +22,7 @@
 						<p><strong class="text-slate-800">Dueño:</strong> {{ booking.owner.get_full_name|default:booking.owner.username }}</p>
 						<p><strong class="text-slate-800">Mascota:</strong> {{ booking.pet.name }}</p>
 						<p><strong class="text-slate-800">Fecha:</strong> {{ booking.date }} · {{ booking.time }}</p>
+						<p><strong class="text-slate-800">Dirección de búsqueda:</strong> {{ booking.pickup_address|default:'No especificada' }}</p>
 						<p><strong class="text-slate-800">Notas:</strong> {{ booking.notes|default:'Sin notas' }}</p>
 					</div>
 					{% if booking.status == 'pending' %}

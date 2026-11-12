@@ -76,6 +76,7 @@ class Booking(models.Model):
     pet = models.ForeignKey('Pet', on_delete=models.PROTECT, related_name='bookings')
     date = models.DateField()
     time = models.TimeField()
+    pickup_address = models.CharField(max_length=255, blank=True, default='')
     notes = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     owner_confirmed = models.BooleanField(default=False)

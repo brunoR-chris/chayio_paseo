@@ -177,9 +177,19 @@ class ProfileUpdateForm(forms.ModelForm):
 
 
 class BookingForm(forms.ModelForm):
+    pickup_address = forms.CharField(
+        max_length=255,
+        label='Dirección donde buscar a la mascota',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'autocomplete': 'street-address',
+            'placeholder': 'Calle, número y barrio',
+        }),
+    )
+
     class Meta:
         model = Booking
-        fields = ('pet', 'date', 'time', 'notes')
+        fields = ('pet', 'date', 'time', 'pickup_address', 'notes')
         widgets = {
             'pet': forms.Select(attrs={'class': 'form-select'}),
             'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),

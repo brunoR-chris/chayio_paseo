@@ -155,11 +155,15 @@ def edit_profile(request):
 def create_pet(request):
     breed_value = ''
     other_breed_value = ''
+    species_error = None
     form_error = None
 
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
-        species = request.POST.get('species', '').strip()
+        submitted_species = request.POST.get('species', '').strip()
+        species = 'Perro' if submitted_species.casefold() == 'perro' else ''
+        if not species:
+            species_error = 'Por ahora solo se pueden registrar perros. Para una raza no listada, usa la opción "Otra raza".'
         breed_value = request.POST.get('breed', '').strip()
         other_breed_value = request.POST.get('other_breed', '').strip()
         if breed_value == OTHER_BREED_VALUE:
@@ -180,7 +184,7 @@ def create_pet(request):
         notes = request.POST.get('notes', '').strip()
         available = request.POST.get('available') == 'on'
 
-        if name and species and not form_error:
+        if name and species and not species_error and not form_error:
             Pet.objects.create(
                 owner=request.user,
                 name=name,
@@ -198,6 +202,7 @@ def create_pet(request):
         'other_breed_value': OTHER_BREED_VALUE,
         'breed_value': breed_value,
         'other_breed': other_breed_value,
+        'species_error': species_error,
         'form_error': form_error,
     })
 

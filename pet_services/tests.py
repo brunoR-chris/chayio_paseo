@@ -10,6 +10,13 @@ from django.utils import timezone
 from .forms import BookingForm, RegistrationForm
 from .dog_breeds import MIXED_BREED
 from .models import Booking, Pet, ServiceOffer, UserProfile, WalkerRating
+from .templatetags.currency import currency
+
+
+class CurrencyFormatTests(TestCase):
+    def test_currency_uses_comma_decimals_and_dot_thousands(self):
+        self.assertEqual(currency(Decimal('15.00')), '15,00')
+        self.assertEqual(currency(Decimal('1234.5')), '1.234,50')
 
 
 class BookingAndDataConstraintTests(TestCase):
@@ -111,6 +118,7 @@ class RegistrationAndBookingFormTests(TestCase):
                 'pet': self.pet.pk,
                 'date': (today + timedelta(days=1)).isoformat(),
                 'time': '10:00',
+                'pickup_address': 'Av. Siempre Viva 123',
                 'notes': '',
             },
             owner=self.owner,
@@ -125,6 +133,7 @@ class RegistrationAndBookingFormTests(TestCase):
                 'pet': self.pet.pk,
                 'date': timezone.localdate().isoformat(),
                 'time': '10:00',
+                'pickup_address': 'Av. Siempre Viva 123',
                 'notes': '',
             },
             owner=self.owner,
@@ -138,6 +147,7 @@ class RegistrationAndBookingFormTests(TestCase):
                 'pet': self.pet.pk,
                 'date': (timezone.localdate() - timedelta(days=1)).isoformat(),
                 'time': '10:00',
+                'pickup_address': 'Av. Siempre Viva 123',
                 'notes': '',
             },
             owner=self.owner,
@@ -145,6 +155,61 @@ class RegistrationAndBookingFormTests(TestCase):
 
         self.assertFalse(form.is_valid())
         self.assertIn('date', form.errors)
+
+    def test_booking_form_requires_pickup_address(self):
+        form = BookingForm(
+            data={
+                'pet': self.pet.pk,
+                'date': timezone.localdate().isoformat(),
+                'time': '10:00',
+                'pickup_address': '',
+                'notes': '',
+            },
+            owner=self.owner,
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn('pickup_address', form.errors)
+
+
+class BookingPickupAddressDisplayTests(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.owner = User.objects.create_user(username='pickup-owner', password='test-password')
+        self.walker = User.objects.create_user(username='pickup-walker', password='test-password')
+        UserProfile.objects.create(user=self.owner, role='owner')
+        UserProfile.objects.create(user=self.walker, role='walker')
+        self.pet = Pet.objects.create(owner=self.owner, name='Luna', species='perro')
+        self.service = ServiceOffer.objects.create(
+            walker=self.walker,
+            title='Paseo con dirección',
+            description='Servicio de prueba',
+            price=Decimal('10.00'),
+            duration_minutes=30,
+            city='Posadas',
+        )
+
+    def test_booking_saves_pickup_address_and_shows_it_to_walker(self):
+        self.client.force_login(self.owner)
+        address = 'Av. Siempre Viva 123, Posadas'
+
+        response = self.client.post(f'/reservar/{self.service.pk}/', {
+            'pet': self.pet.pk,
+            'date': timezone.localdate().isoformat(),
+            'time': '10:00',
+            'pickup_address': address,
+            'notes': '',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        booking = Booking.objects.get(owner=self.owner, service=self.service)
+        self.assertEqual(booking.pickup_address, address)
+
+        self.client.force_login(self.walker)
+        response = self.client.get('/mis-reservas/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, address)
 
 
 class PetRegistrationTests(TestCase):
@@ -192,6 +257,23 @@ class PetRegistrationTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Selecciona una raza de la lista o elige otra raza.')
+        self.assertFalse(Pet.objects.filter(owner=self.user).exists())
+
+    def test_registration_page_explains_only_dogs_are_supported(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Por ahora solo se pueden registrar perros.')
+        self.assertContains(response, 'selecciona «Otra raza»')
+
+    def test_registration_rejects_non_dog_species(self):
+        data = self.pet_data('Golden Retriever')
+        data['species'] = 'Gato'
+
+        response = self.client.post(self.url, data)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Por ahora solo se pueden registrar perros.')
         self.assertFalse(Pet.objects.filter(owner=self.user).exists())
 
 
@@ -321,6 +403,12 @@ class ServiceReviewDisplayTests(TestCase):
         self.assertContains(response, 'Dueño Prueba')
         self.assertNotContains(response, 'Este comentario no debe mostrarse todavía.')
 
+    def test_home_formats_service_price_with_decimal_comma(self):
+        response = self.client.get('/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '$ 15,00')
+
     def test_booking_page_shows_full_description_and_reviews(self):
         self.create_booking('completed', 'Reseña visible en el detalle.')
         self.client.force_login(self.owner)
@@ -330,3 +418,4 @@ class ServiceReviewDisplayTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.description)
         self.assertContains(response, 'Reseña visible en el detalle.')
+        self.assertContains(response, '$15,00')

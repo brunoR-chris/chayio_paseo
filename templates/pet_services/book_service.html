@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load currency %}
 {% block title %}Reservar servicio | Chayio{% endblock %}
 {% block content %}
 <div class="container mx-auto px-4 py-16">
@@ -17,7 +18,7 @@
             </div>
             <div class="rounded-2xl bg-lime-50 p-4">
                 <small class="block text-xs font-semibold uppercase tracking-[0.12em] text-brand-500">Precio</small>
-                <strong class="mt-1 block text-2xl font-black text-brand-500">${{ offer.price }}</strong>
+                <strong class="mt-1 block text-2xl font-black text-brand-500">${{ offer.price|currency }}</strong>
             </div>
         </div>
 
@@ -42,6 +43,11 @@
                 <label class="mb-2 block text-sm font-semibold text-slate-700" for="{{ form.time.id_for_label }}">Hora</label>
                 {{ form.time }}
                 {{ form.time.errors }}
+            </div>
+            <div class="md:col-span-2">
+                <label class="mb-2 block text-sm font-semibold text-slate-700" for="{{ form.pickup_address.id_for_label }}">Dirección donde buscar a la mascota</label>
+                {{ form.pickup_address }}
+                {{ form.pickup_address.errors }}
             </div>
             <div class="md:col-span-2">
                 <label class="mb-2 block text-sm font-semibold text-slate-700" for="{{ form.notes.id_for_label }}">Instrucciones o detalles</label>
