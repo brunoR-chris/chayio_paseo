@@ -76,6 +76,27 @@ class BookingAndDataConstraintTests(TestCase):
             ),
         ]))
 
+    def test_booking_time_must_be_within_walking_hours(self):
+        booking = Booking(
+            owner=self.owner,
+            pet=self.pet,
+            service=self.service,
+            date=date(2026, 12, 2),
+            time=time(7, 59),
+        )
+        with self.assertRaises(ValidationError):
+            booking.save()
+
+        self.assert_database_rejects(lambda: Booking.objects.bulk_create([
+            Booking(
+                owner=self.owner,
+                pet=self.pet,
+                service=self.service,
+                date=date(2026, 12, 2),
+                time=time(19, 1),
+            ),
+        ]))
+
     def test_database_rejects_invalid_domain_values(self):
         self.assert_database_rejects(lambda: UserProfile.objects.filter(user=self.owner).update(role='admin'))
         self.assert_database_rejects(lambda: ServiceOffer.objects.filter(pk=self.service.pk).update(price=0))
@@ -126,6 +147,41 @@ class RegistrationAndBookingFormTests(TestCase):
 
         self.assertTrue(form.is_valid(), form.errors)
         self.assertEqual(form.fields['date'].widget.attrs['min'], today.isoformat())
+        self.assertEqual(form.fields['time'].widget.attrs['min'], '08:00')
+        self.assertEqual(form.fields['time'].widget.attrs['max'], '19:00')
+
+    def test_booking_form_accepts_walking_hours_boundaries(self):
+        for booking_time in ('08:00', '19:00'):
+            with self.subTest(booking_time=booking_time):
+                form = BookingForm(
+                    data={
+                        'pet': self.pet.pk,
+                        'date': timezone.localdate().isoformat(),
+                        'time': booking_time,
+                        'pickup_address': 'Av. Siempre Viva 123',
+                        'notes': '',
+                    },
+                    owner=self.owner,
+                )
+
+                self.assertTrue(form.is_valid(), form.errors)
+
+    def test_booking_form_rejects_times_outside_walking_hours(self):
+        for booking_time in ('07:59', '19:01'):
+            with self.subTest(booking_time=booking_time):
+                form = BookingForm(
+                    data={
+                        'pet': self.pet.pk,
+                        'date': timezone.localdate().isoformat(),
+                        'time': booking_time,
+                        'pickup_address': 'Av. Siempre Viva 123',
+                        'notes': '',
+                    },
+                    owner=self.owner,
+                )
+
+                self.assertFalse(form.is_valid())
+                self.assertIn('time', form.errors)
 
     def test_booking_form_accepts_today(self):
         form = BookingForm(

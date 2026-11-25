@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Booking, UserProfile
+from .models import Booking, UserProfile, WALKING_END_TIME, WALKING_START_TIME
 
 
 class RegistrationForm(UserCreationForm):
@@ -204,6 +204,10 @@ class BookingForm(forms.ModelForm):
             raise TypeError('El campo de mascota debe ser un ModelChoiceField.')
         pet_field.queryset = owner.pets.all()
         self.fields['date'].widget.attrs['min'] = timezone.localdate().isoformat()
+        self.fields['time'].widget.attrs.update({
+            'min': WALKING_START_TIME.strftime('%H:%M'),
+            'max': WALKING_END_TIME.strftime('%H:%M'),
+        })
 
     def clean_date(self):
         booking_date = self.cleaned_data['date']

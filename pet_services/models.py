@@ -1,9 +1,15 @@
+from datetime import time
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
 from django.core.validators import MaxValueValidator, MinValueValidator
+
+
+WALKING_START_TIME = time(8, 0)
+WALKING_END_TIME = time(19, 0)
 
 
 class UserProfile(models.Model):
@@ -89,6 +95,10 @@ class Booking(models.Model):
                 condition=Q(status__in=['pending', 'confirmed', 'canceled', 'completed']),
                 name='booking_status_valid',
             ),
+            models.CheckConstraint(
+                condition=Q(time__gte=WALKING_START_TIME, time__lte=WALKING_END_TIME),
+                name='booking_time_within_walking_hours',
+            ),
         ]
 
     def clean(self):
@@ -98,6 +108,11 @@ class Booking(models.Model):
 
         if owner_id and pet_id and pet is not None and owner_id != getattr(pet, 'owner_id', None):
             raise ValidationError({'pet': 'La mascota debe pertenecer al dueño de la reserva.'})
+
+        if self.time and not WALKING_START_TIME <= self.time <= WALKING_END_TIME:
+            raise ValidationError({
+                'time': 'Los paseos solo se pueden reservar entre las 08:00 y las 19:00.',
+            })
 
         service_id = getattr(self, 'service_id', None)
         service = getattr(self, 'service', None)
